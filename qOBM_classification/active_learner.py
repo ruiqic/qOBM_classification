@@ -8,7 +8,6 @@ from qOBM_classification.feature_extraction import (add_all_manual_features, add
 from qOBM_classification.visualize import label_masks_class
 from qOBM_classification.utils import random_sample_list, parition_list
 from qOBM_classification.object_dataset import make_phasor_dataset, make_phasor_dataset_inference
-from qOBM_classification.model import DinoV2net
 
 def filter_out_ignore_index(X, y, ignore_index=3):
     # Create a boolean mask where y is not equal to 3
