@@ -1,7 +1,6 @@
 import numpy as np
 import copy
-from qOBM_classification.mask_generation import (get_mask_generator, generate_masks, 
-                                                 filter_mask_area_roundness, get_all_viable_masks)
+from qOBM_classification.mask_generation import get_mask_generator, get_all_viable_masks
 from qOBM_classification.feature_extraction import (add_all_manual_features, add_all_masks_boxes, 
                                                     get_manual_feature_array, get_class_array, add_class_label,
                                                     get_all_keys_idxs, add_all_phasor_boxes)

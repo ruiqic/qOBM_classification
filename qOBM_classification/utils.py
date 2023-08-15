@@ -49,7 +49,7 @@ def numpy_to_png(phasor_file_path, dst):
         
     gray = phase2GRAY(phase, vmin=-0.2, vmax=0.5)
     img = Image.fromarray(gray , 'L')
-    img.save(dst)
+    img.save(dst, format='PNG')
 
 def random_sample_list(keys_idxs, sampled_num, seed=None):
     """

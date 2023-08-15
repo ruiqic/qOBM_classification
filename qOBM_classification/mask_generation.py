@@ -1,9 +1,28 @@
 import numpy as np
 import cv2
+import os
 import skimage
 from tqdm import tqdm
+from io import BytesIO
 from functools import partial
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
+
+def cv2_read_image(path_or_buf):
+    if isinstance(path_or_buf, str) and os.path.isfile(path_or_buf):
+        img_raw = cv2.imread(image_file_path)
+    elif isinstance(path_or_buf, BytesIO):
+        # Get the BytesIO content as bytes
+        image_bytes = path_or_buf.getvalue()
+
+        # Convert the bytes to a NumPy array
+        image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+
+        # Decode the array using OpenCV 
+        img_raw = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+    else:
+        raise ValueError("Invalid path to image")
+    return img_raw
+        
 
 def get_mask_generator(vit_h_checkpoint, pred_iou_thresh=0.9, stability_score_thresh=0.96, device="cuda"):
     """
@@ -33,7 +52,7 @@ def generate_masks(mask_generator, image_file_path):
       
       to extract bbox phasor[y:y+h, x:x+w, :]
     """
-    img_raw = cv2.imread(image_file_path)
+    img_raw = cv2_read_image(image_file_path)
     masks = mask_generator.generate(img_raw)
     return masks
     
@@ -83,7 +102,7 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
     
     for image_file_path, phasor_file_path in tqdm(zip(image_file_paths, phasor_file_paths), 
                                                   disable=not progress, total=len(image_file_paths)):
-        image = cv2.imread(image_file_path)
+        image = cv2_read_image(image_file_path)
         phasor = np.load(phasor_file_path)
         
         # switch channels for images where channel 2 is phase
