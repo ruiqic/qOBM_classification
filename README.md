@@ -34,5 +34,5 @@ Generate segmnetation masks for these images from the command line to the desire
 python qOBM_classification/segment.py -i input_directory -o output_directory -cp <path/to/SAM/checkpoint> -v
 ```
 
-The the overhead of package loading and initialization may take a few minutes, so it is recommended to segment batches of many images at once. The segmentation outputs will have the same filenames as their corresponding inputs. The arrays within are of shape (n_objects, height, width).
+The the overhead of package loading and initialization may take a few minutes, so it is recommended to segment large batches of images at once. The segmentation outputs will have the same filenames as their corresponding inputs. The arrays within are of shape (n_objects, height, width).
 
