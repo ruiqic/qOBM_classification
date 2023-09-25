@@ -9,7 +9,7 @@ from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamP
 
 def cv2_read_image(path_or_buf):
     if isinstance(path_or_buf, str) and os.path.isfile(path_or_buf):
-        img_raw = cv2.imread(image_file_path)
+        img_raw = cv2.imread(path_or_buf)
     elif isinstance(path_or_buf, BytesIO):
         # Get the BytesIO content as bytes
         image_bytes = path_or_buf.getvalue()
