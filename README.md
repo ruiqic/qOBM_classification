@@ -7,7 +7,7 @@ Cell segmentation and classification leveraging [SAM](https://github.com/faceboo
 The code requires `python>=3.9`. Clone the repository locally, install the dependencies, and install qOBM Classification
 
 ```
-git clone git@github.com:ruiqic/qOBM_classification.git
+git clone https://github.com/ruiqic/qOBM_classification.git
 cd qOBM_classification
 pip install -r requirements.txt
 pip install -e .
