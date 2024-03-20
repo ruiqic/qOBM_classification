@@ -7,8 +7,8 @@ class DinoV2net(nn.Module):
         
         torch.hub.set_dir(dinov2_cache_dir)
         dinov2_vitb14 = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14')
-        for param in dinov2_vitb14.parameters():
-            param.requires_grad = False
+        #for param in dinov2_vitb14.parameters():
+        #    param.requires_grad = False
             
         self.dinov2 = dinov2_vitb14
         self.linear = nn.Sequential(

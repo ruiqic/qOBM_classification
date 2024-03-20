@@ -107,6 +107,8 @@ def add_all_manual_features(all_masks):
         masks = image_data["masks"]
         
         for mask in masks:
+            if "manual_features" in mask:
+                continue
             manual_features = extract_manual_features(mask, phasor)
             mask["manual_features"] = manual_features
     
@@ -122,6 +124,8 @@ def add_all_masks_boxes(all_masks, bbox_extend=150):
         masks = image_data["masks"]
         
         for mask in masks:
+            if "image_box" in mask and "mask_box" in mask:
+                continue
             image_box, mask_box = extract_mask_box(mask, image, bbox_extend=bbox_extend)
             mask["image_box"] = image_box
             mask["mask_box"] = mask_box
@@ -131,7 +135,6 @@ def add_all_phasor_boxes(all_masks, bbox_extend=150):
     takes the output of mask_generation.get_all_viable_masks
     adds 'phasor_box' key to the masks
     """
-    Compose, EnsureChannelFirst, BorderPad
     transforms = Compose([EnsureChannelFirst(channel_dim=2),
                           BorderPad(spatial_border=bbox_extend, mode="reflect")])
     
@@ -142,6 +145,8 @@ def add_all_phasor_boxes(all_masks, bbox_extend=150):
         masks = image_data["masks"]
         
         for mask in masks:
+            if "phasor_box" in mask and "phasor_box_no_background" in mask:
+                continue
             phasor_box, phasor_box_no_background = extract_phasor_box(mask, padded_phasor, bbox_extend=bbox_extend)
             mask["phasor_box"] = phasor_box
             mask["phasor_box_no_background"] = phasor_box_no_background

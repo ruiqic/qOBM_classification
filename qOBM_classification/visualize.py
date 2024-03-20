@@ -7,7 +7,7 @@ def mask_to_color_image(mask, color_idx, alpha=0.35):
     """
     converts boolean (H,W) mask to (H,W,4) color mask for plotting
     """
-    color = plt.cm.Set2.colors[color_idx]
+    color = plt.cm.Dark2.colors[color_idx]
     m_plot = np.tile(np.expand_dims(mask, 2), (1,1,4)).astype(float)
     for channel in range(3):
         m_plot[:,:,channel] *= color[channel]

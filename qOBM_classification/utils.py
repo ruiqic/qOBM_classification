@@ -74,15 +74,14 @@ def parition_list(keys_idxs, selected_idxs):
 
 def get_foreground_stats(all_masks):
     all_masks_copy = copy.deepcopy(all_masks)
-    add_all_masks_boxes(all_masks_copy, bbox_extend=0)
     add_all_phasor_boxes(all_masks_copy, bbox_extend=0)
-    
+
     fg_pixels = []
     for key in all_masks_copy:
         masks = all_masks_copy[key]["masks"]
         for mask in masks:
             phasor_box = mask["phasor_box"]
-            mask_box = mask["mask_box"]
+            mask_box = mask["phasor_box_no_background"].sum(axis=0).astype(bool)
             fg_pixels.append(phasor_box[:, mask_box])
     
     fg_pixels_np = np.hstack(fg_pixels)

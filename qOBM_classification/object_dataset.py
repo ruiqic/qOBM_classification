@@ -6,10 +6,14 @@ from monai.transforms import (Compose, EnsureTyped, ScaleIntensityRanged,
 from monai.data import CacheDataset, Dataset
 from qOBM_classification.utils import get_foreground_stats
 
-def make_phasor_transforms(device, stats_dict):
+def make_phasor_transforms(device, stats_dict, label_float_type):
+    if label_float_type:
+        type_cast = CastToTyped(keys=["image", "label"], dtype=[torch.float, torch.float])
+    else:
+        type_cast = CastToTyped(keys=["image", "label"], dtype=[torch.float, torch.long])
+    
     transforms = Compose([        
-        # convert to tensor and send to GPU
-        EnsureTyped(keys=["image", "label"], data_type="tensor", track_meta=False, device=device),
+        
         
         # clip intensity
         #ScaleIntensityRanged(keys="image", a_min=stats_dict["min"], a_max=stats_dict["max"], 
@@ -25,6 +29,12 @@ def make_phasor_transforms(device, stats_dict):
         #RandRotated(keys="image", range_x=3.14, prob=1, 
         #           mode="bilinear", padding_mode="border", dtype=None),
         
+        # random flip
+        RandFlipd(keys="image", prob=0.5, spatial_axis=1),
+        
+        # convert to tensor and send to GPU
+        EnsureTyped(keys=["image", "label"], data_type="tensor", track_meta=False, device=device),
+        
         # affine
         RandAffined(keys="image", prob=1, rotate_range=3.14, shear_range=0.3, translate_range=30, 
                     scale_range=0.2),
@@ -32,8 +42,7 @@ def make_phasor_transforms(device, stats_dict):
         # center crop to final resultion of 168, might not fit all masks in
         CenterSpatialCropd(keys="image", roi_size=[168,168]),
         
-        # random flip
-        RandFlipd(keys="image", prob=0.5, spatial_axis=1),
+        
         
         
         # gaussian noise
@@ -46,7 +55,7 @@ def make_phasor_transforms(device, stats_dict):
         #RandAdjustContrastd(keys="image", prob=0.15, gamma=(0.7, 1.5)),
         
         # cast to final type
-        CastToTyped(keys=["image", "label"], dtype=[torch.float, torch.long]),
+        type_cast,
     ])
     return transforms
     
@@ -74,19 +83,20 @@ def make_phasor_transforms_inference(device, stats_dict):
     return transforms
 
     
-def make_phasor_dataset(all_masks, labeled_keys_idxs, device):
+def make_phasor_dataset(all_masks, labeled_keys_idxs, device, stats_dict=None, label_float_type=False):
     data = []
     for key, idx in labeled_keys_idxs:
         mask = all_masks[key]["masks"][idx]
-        if "phasor_box" not in mask:
+        if "phasor_box_no_background" not in mask:
             raise ValueError("Queried mask has no phasor_box. Use feature_extraction.add_all_phasor_boxes")
         if "class" not in mask:
             raise ValueError("Queried mask has no class. Use feature_extraction.add_class_label or visualize.label_masks_class")
         d = {"image": mask["phasor_box_no_background"], "label": mask["class"]}
         data.append(d)
         
-    stats_dict = get_foreground_stats(all_masks)
-    transforms = make_phasor_transforms(device, stats_dict)
+    if stats_dict is None:
+        stats_dict = get_foreground_stats(all_masks)
+    transforms = make_phasor_transforms(device, stats_dict, label_float_type)
     
     dataset = CacheDataset(data, transforms, num_workers=6)
     return dataset, stats_dict
@@ -95,7 +105,7 @@ def make_phasor_dataset_inference(all_masks, keys_idxs, device, stats_dict, with
     data = []
     for key, idx in keys_idxs:
         mask = all_masks[key]["masks"][idx]
-        if "phasor_box" not in mask:
+        if "phasor_box_no_background" not in mask:
             raise ValueError("Queried mask has no phasor_box. Use feature_extraction.add_all_phasor_boxes")
         if with_class:
             if "class" not in mask:
