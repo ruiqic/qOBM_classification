@@ -84,7 +84,7 @@ def filter_mask_area_roundness(mask, min_area=3000, max_area=15000, min_roundnes
 
 def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
                          min_area=3000, max_area=15000, min_roundness=0.85,
-                         progress=False):
+                         progress=False, in_memory=False):
     """
     image_file_paths : list of paths to png image
     phasor_file_paths : list of paths to npy phasor, same order as image_file_paths
@@ -102,8 +102,12 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
     
     for image_file_path, phasor_file_path in tqdm(zip(image_file_paths, phasor_file_paths), 
                                                   disable=not progress, total=len(image_file_paths)):
-        image = cv2_read_image(image_file_path)
-        phasor = np.load(phasor_file_path)
+        if in_memory:
+            image = image_file_path
+            phasor = phasor_file_path
+        else:
+            image = cv2_read_image(image_file_path)
+            phasor = np.load(phasor_file_path)
         
         # switch channels for images where channel 2 is phase
         if not (-0.2<phasor[:,:,0].mean()<0.2):
