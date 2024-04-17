@@ -87,7 +87,8 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
                          progress=False):
     """
     image_file_paths : list of paths to png image
-    phasor_file_paths : list of paths to npy phasor, same order as image_file_paths
+    phasor_file_paths : list of paths to npy phasor, same order as image_file_paths. 
+                        Can be None
     
     returns : dict
         image_file path as key, value is dict with keys {'image', 'phasor', 'masks'}
@@ -99,14 +100,15 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
     all_masks = {}
     mask_filterer = partial(filter_mask_area_roundness, min_area=min_area, 
                             max_area=max_area, min_roundness=min_roundness)
+    phasor_file_paths = phasor_file_paths if phasor_file_paths is not None else [None] * len(image_file_paths)
     
     for image_file_path, phasor_file_path in tqdm(zip(image_file_paths, phasor_file_paths), 
                                                   disable=not progress, total=len(image_file_paths)):
         image = cv2_read_image(image_file_path)
-        phasor = np.load(phasor_file_path)
+        phasor = np.load(phasor_file_path) if phasor_file_path is not None else None
         
         # switch channels for images where channel 2 is phase
-        if not (-0.2<phasor[:,:,0].mean()<0.2):
+        if phasor is not None and not (-0.2<phasor[:,:,0].mean()<0.2):
             phasor_copy = phasor.copy()
             phasor[:,:,0], phasor[:,:,2] = phasor_copy[:,:,2], phasor_copy[:,:,0]
         
