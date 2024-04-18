@@ -84,7 +84,7 @@ def filter_mask_area_roundness(mask, min_area=3000, max_area=15000, min_roundnes
 
 def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
                          min_area=3000, max_area=15000, min_roundness=0.85,
-                         progress=False):
+                         progress=False, reduce_masks=False):
     """
     image_file_paths : list of paths to png image
     phasor_file_paths : list of paths to npy phasor, same order as image_file_paths. 
@@ -95,6 +95,10 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
             image : (H,W,3) grayscale array
             phasor : (H,W,3) array
             masks : list of filtered masks
+            
+    if reduce_masks == True
+    returns : dict
+        image_file path as key, value is (H,W) array of masks reduced with logical OR operator
     """
     
     all_masks = {}
@@ -114,7 +118,13 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
         
         masks = generate_masks(mask_generator=mask_generator, image_file_path=image_file_path)
         masks_filtered = list(filter(mask_filterer, masks))
-        all_masks[image_file_path] = {"image":image, "phasor":phasor, "masks":masks_filtered}
+        
+        if reduce_masks:
+            mask_segmentations = [mask["segmentation"] for mask in masks_filtered]
+            reduced_mask = np.logical_or.reduce(mask_segmentations)
+            all_masks[image_file_path] = reduced_mask
+        else:
+            all_masks[image_file_path] = {"image":image, "phasor":phasor, "masks":masks_filtered}
         
     return all_masks
     

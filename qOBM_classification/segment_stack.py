@@ -76,13 +76,12 @@ def segment(input_dir, output_dir, checkpoint_path, verbose):
 
             # predict
             all_masks = get_all_viable_masks(mask_generator, image_file_paths, None,
-                                             min_area=3000, max_area=15000, min_roundness=0.85, progress=verbose)
+                                             min_area=3000, max_area=15000, min_roundness=0.85, 
+                                             progress=verbose, reduce_masks=True)
 
             output_masks = []
             for image_file_path in image_file_paths:
-                masks = all_masks[image_file_path]["masks"]
-                mask_segmentations = [mask["segmentation"] for mask in masks]
-                reduced_mask = np.logical_or.reduce(mask_segmentations)
+                reduced_mask = all_masks[image_file_path]
                 output_masks.append(reduced_mask)
 
             # write output
