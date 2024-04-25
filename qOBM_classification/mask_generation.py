@@ -5,7 +5,9 @@ import skimage
 from tqdm import tqdm
 from io import BytesIO
 from functools import partial
+from itertools import product
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
+from typing import Iterable
 
 def cv2_read_image(path_or_buf):
     if isinstance(path_or_buf, str) and os.path.isfile(path_or_buf):
@@ -101,9 +103,23 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
         image_file path as key, value is (H,W) array of masks reduced with logical OR operator
     """
     
-    all_masks = {}
-    mask_filterer = partial(filter_mask_area_roundness, min_area=min_area, 
-                            max_area=max_area, min_roundness=min_roundness)
+    
+    
+    if not isinstance(min_area, Iterable):
+        min_area = [min_area]
+    if not isinstance(max_area, Iterable):
+        max_area = [max_area]
+    if not isinstance(min_roundness, Iterable):
+        min_roundness = [min_roundness]
+    
+    combos = product(min_area, max_area, min_roundness)
+    mask_filterers = []
+    masks_combos = []
+    for combo in combos:
+        mask_filterers.append(partial(filter_mask_area_roundness, min_area=combo[0], 
+                                      max_area=combo[1], min_roundness=combo[2]))
+        masks_combos.append({})
+        
     phasor_file_paths = phasor_file_paths if phasor_file_paths is not None else [None] * len(image_file_paths)
     
     for image_file_path, phasor_file_path in tqdm(zip(image_file_paths, phasor_file_paths), 
@@ -117,14 +133,19 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
             phasor[:,:,0], phasor[:,:,2] = phasor_copy[:,:,2], phasor_copy[:,:,0]
         
         masks = generate_masks(mask_generator=mask_generator, image_file_path=image_file_path)
-        masks_filtered = list(filter(mask_filterer, masks))
         
-        if reduce_masks:
-            mask_segmentations = [mask["segmentation"] for mask in masks_filtered]
-            reduced_mask = np.logical_or.reduce(mask_segmentations)
-            all_masks[image_file_path] = reduced_mask
-        else:
-            all_masks[image_file_path] = {"image":image, "phasor":phasor, "masks":masks_filtered}
+        for all_masks, mask_filterer in zip(masks_combos, mask_filterers):
+            masks_filtered = list(filter(mask_filterer, masks))
+
+            if reduce_masks:
+                mask_segmentations = [mask["segmentation"] for mask in masks_filtered]
+                reduced_mask = np.logical_or.reduce(mask_segmentations)
+                all_masks[image_file_path] = reduced_mask
+            else:
+                all_masks[image_file_path] = {"image":image, "phasor":phasor, "masks":masks_filtered}
         
-    return all_masks
+    if len(masks_combos) == 1:
+        return masks_combos[0]
+    else:
+        return masks_combos
     

@@ -2,12 +2,16 @@ import os
 import sys
 import argparse
 import pickle
+import scipy
 import numpy as np
 import tempfile
 from PIL import Image
+from functools import partial
+from tqdm import tqdm
+import cv2
 
-from qOBM_classification.mask_generation import get_mask_generator, get_all_viable_masks
-from qOBM_classification.utils import phase2GRAY
+from qOBM_classification.mask_generation import get_mask_generator, filter_mask_area_roundness
+from qOBM_classification.utils import phase2GRAY, rlencode, rldecode, gaussian_kernel
 
 def parse_args():
     """Parse input arguments."""
@@ -44,6 +48,10 @@ def segment(input_dir, output_dir, checkpoint_path, verbose):
     
     mask_generator = get_mask_generator(checkpoint_path)
     
+    mask_filterer = partial(filter_mask_area_roundness, min_area=3000, max_area=15000, min_roundness=0.85)
+    mask_filterer_loose = partial(filter_mask_area_roundness, min_area=3000, max_area=15000, min_roundness=0.5)
+    kernel = gaussian_kernel(sigma=10, size=17)
+    
     if verbose:
         print("Loaded pretrained models")
     
@@ -52,42 +60,49 @@ def segment(input_dir, output_dir, checkpoint_path, verbose):
     
     if verbose:
         print("Found %d files"%num_files)
-    
-    with tempfile.TemporaryDirectory() as temp_dir:
+            
+    for i, file_path in enumerate(file_list):
+        full_file_path = os.path.join(input_dir, file_path)
+        stack = np.load(full_file_path)
+        dim1, dim2, stack_height = stack.shape
         
-        for i, file_path in enumerate(file_list):
-            full_file_path = os.path.join(input_dir, file_path)
-            stack = np.load(full_file_path)
-            stack_height = stack.shape[2]
+        if verbose:
+            print("Processing %d/%d: %s with %d images"%(i+1, num_files, file_path, stack_height))
 
-            if verbose:
-                print("Processing %d/%d: %s with %d images"%(i+1, num_files, file_path, stack_height))
+        mask_aggregate = np.zeros((dim1, dim2))
+        rles = []
+        for h in tqdm(range(stack_height), disable=not verbose, total=stack_height, desc="Generating masks"):
+            phase = stack[:,:,h]
+            gray = phase2GRAY(phase, vmin=-0.2, vmax=0.5)
+            image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+            masks = mask_generator.generate(image)
 
-            image_file_paths = []
-            for h in range(stack_height):
+            masks_filtered = list(filter(mask_filterer, masks))
+            mask_segmentations = [mask["segmentation"] for mask in masks_filtered]
+            reduced_mask = np.logical_or.reduce(mask_segmentations).astype(int)
+            mask_aggregate += reduced_mask
 
-                # prepare files
-                image_file_path = os.path.join(temp_dir, f"{h}.png")
-                phase = stack[:,:,h]
-                gray = phase2GRAY(phase, vmin=-0.2, vmax=0.5)
-                img = Image.fromarray(gray , 'L')
-                img.save(image_file_path, format='PNG')
-                image_file_paths.append(image_file_path)
+            masks_filtered_loose = list(filter(mask_filterer_loose, masks))
+            mask_segmentations_loose = np.array([mask["segmentation"] for mask in masks_filtered_loose]).astype(np.uint8)
+            loose_rle = list(map(lambda x: rlencode(x.reshape(-1)), mask_segmentations_loose))
+            rles.append(loose_rle)
+            
+        flat_tracked_cells = (mask_aggregate > stack_height * 0.5).astype(np.uint8).reshape(-1)
+        stack_masks = []
+        for rle_list in tqdm(rles, disable=not verbose, total=stack_height, desc="Refining masks"):
+            mask_segmentations = []
+            for rle in rle_list:
+                flat_mask = rldecode(*rle)
+                if (flat_mask * flat_tracked_cells).sum() > flat_mask.sum() * 0.8:
+                    mask_segmentations.append(flat_mask.reshape((dim1,dim2)))
+            stack_masks.append(np.logical_or.reduce(mask_segmentations).astype(np.uint8))
 
-            # predict
-            all_masks = get_all_viable_masks(mask_generator, image_file_paths, None,
-                                             min_area=3000, max_area=15000, min_roundness=0.85, 
-                                             progress=verbose, reduce_masks=True)
+        stacked_masks = np.stack(stack_masks, axis=2)
+        smoothed_stacked_masks = scipy.ndimage.convolve1d(stacked_masks.astype(float), weights=kernel, axis=2, mode="nearest")
+        stacked_output = (smoothed_stacked_masks > 0.5).astype(np.uint8)
 
-            output_masks = []
-            for image_file_path in image_file_paths:
-                reduced_mask = all_masks[image_file_path]
-                output_masks.append(reduced_mask)
-
-            # write output
-            stacked_output = np.stack(output_masks, axis=2).astype(np.uint8)
-            segmentation_output_path = os.path.join(output_dir, file_path)
-            np.save(segmentation_output_path, stacked_output)
+        segmentation_output_path = os.path.join(output_dir, file_path)
+        np.save(segmentation_output_path, stacked_output)
         
 if __name__ == "__main__" :
     args = parse_args()
