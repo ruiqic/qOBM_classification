@@ -4,7 +4,10 @@ Cell segmentation and classification leveraging [SAM](https://github.com/faceboo
 
 ## Installation
 
-The code requires `python>=3.9`. Clone the repository locally, install the dependencies, and install qOBM Classification
+The code requires `python>=3.10`, `torch>=2.3.1` and `torchvision>=0.18.1`. Follow [these instructions](https://pytorch.org/get-started/locally/) to install `torch` and a matching version of `torchvision`.
+
+
+Clone the repository locally, install the remaining dependencies, and install qOBM Classification
 
 ```
 git clone https://github.com/ruiqic/qOBM_classification.git
@@ -15,7 +18,7 @@ pip install -e .
 
 ## Getting Started
 
-First, download a SAM [model checkpoint](https://github.com/facebookresearch/segment-anything/tree/main#model-checkpoints). We recommend `vit_h` for the best segmentation.
+First, download a SAM 2 [model checkpoint](https://github.com/facebookresearch/segment-anything-2/tree/main?tab=readme-ov-file#download-checkpoints). We recommend `vit_h` for the best segmentation.
 
 The expected inputs are arrays of shape `(height, width, 3)` in `.npy` files stored in an `input_directory` like so 
 
