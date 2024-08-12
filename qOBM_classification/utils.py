@@ -93,3 +93,74 @@ def get_foreground_stats(all_masks):
     stats_dict["std"] = np.std(fg_pixels_np, axis=1)
     
     return stats_dict
+
+def rlencode(x, dropna=False):
+    """
+    Run length encoding.
+    Based on http://stackoverflow.com/a/32681075, which is based on the rle 
+    function from R.
+    
+    Parameters
+    ----------
+    x : 1D array_like
+        Input array to encode
+    dropna: bool, optional
+        Drop all runs of NaNs.
+    
+    Returns
+    -------
+    start positions, run lengths, run values
+    
+    """
+    where = np.flatnonzero
+    x = np.asarray(x)
+    n = len(x)
+    if n == 0:
+        return (np.array([], dtype=int), 
+                np.array([], dtype=int), 
+                np.array([], dtype=x.dtype))
+
+    starts = np.r_[0, where(~np.isclose(x[1:], x[:-1], equal_nan=True)) + 1]
+    lengths = np.diff(np.r_[starts, n])
+    values = x[starts]
+    
+    if dropna:
+        mask = ~np.isnan(values)
+        starts, lengths, values = starts[mask], lengths[mask], values[mask]
+    
+    return starts, lengths, values
+
+
+def rldecode(starts, lengths, values, minlength=None):
+    """
+    Decode a run-length encoding of a 1D array.
+    
+    Parameters
+    ----------
+    starts, lengths, values : 1D array_like
+        The run-length encoding.
+    minlength : int, optional
+        Minimum length of the output array.
+    
+    Returns
+    -------
+    1D array. Missing data will be filled with NaNs.
+    
+    """
+    starts, lengths, values = map(np.asarray, (starts, lengths, values))
+    # TODO: check validity of rle
+    ends = starts + lengths
+    n = ends[-1]
+    if minlength is not None:
+        n = max(minlength, n)
+    x = np.full(n, np.nan)
+    for lo, hi, val in zip(starts, ends, values):
+        x[lo:hi] = val
+    return x
+
+def gaussian_kernel(sigma, size=5):
+    """Generate a 1D Gaussian kernel."""
+    kernel = np.linspace(-(size // 2), size // 2, size)
+    kernel = np.exp(-0.5 * (kernel / sigma) ** 2)
+    kernel /= np.sum(kernel)
+    return kernel

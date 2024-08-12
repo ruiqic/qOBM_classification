@@ -5,7 +5,9 @@ import skimage
 from tqdm import tqdm
 from io import BytesIO
 from functools import partial
+from itertools import product
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
+from typing import Iterable
 
 def cv2_read_image(path_or_buf):
     if isinstance(path_or_buf, str) and os.path.isfile(path_or_buf):
@@ -84,39 +86,66 @@ def filter_mask_area_roundness(mask, min_area=3000, max_area=15000, min_roundnes
 
 def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
                          min_area=3000, max_area=15000, min_roundness=0.85,
-                         progress=False, in_memory=False):
+                         progress=False, reduce_masks=False):
     """
     image_file_paths : list of paths to png image
-    phasor_file_paths : list of paths to npy phasor, same order as image_file_paths
+    phasor_file_paths : list of paths to npy phasor, same order as image_file_paths. 
+                        Can be None
     
     returns : dict
         image_file path as key, value is dict with keys {'image', 'phasor', 'masks'}
             image : (H,W,3) grayscale array
             phasor : (H,W,3) array
             masks : list of filtered masks
+            
+    if reduce_masks == True
+    returns : dict
+        image_file path as key, value is (H,W) array of masks reduced with logical OR operator
     """
     
-    all_masks = {}
-    mask_filterer = partial(filter_mask_area_roundness, min_area=min_area, 
-                            max_area=max_area, min_roundness=min_roundness)
+    
+    
+    if not isinstance(min_area, Iterable):
+        min_area = [min_area]
+    if not isinstance(max_area, Iterable):
+        max_area = [max_area]
+    if not isinstance(min_roundness, Iterable):
+        min_roundness = [min_roundness]
+    
+    combos = product(min_area, max_area, min_roundness)
+    mask_filterers = []
+    masks_combos = []
+    for combo in combos:
+        mask_filterers.append(partial(filter_mask_area_roundness, min_area=combo[0], 
+                                      max_area=combo[1], min_roundness=combo[2]))
+        masks_combos.append({})
+        
+    phasor_file_paths = phasor_file_paths if phasor_file_paths is not None else [None] * len(image_file_paths)
     
     for image_file_path, phasor_file_path in tqdm(zip(image_file_paths, phasor_file_paths), 
                                                   disable=not progress, total=len(image_file_paths)):
-        if in_memory:
-            image = image_file_path
-            phasor = phasor_file_path
-        else:
-            image = cv2_read_image(image_file_path)
-            phasor = np.load(phasor_file_path)
+        image = cv2_read_image(image_file_path)
+        phasor = np.load(phasor_file_path) if phasor_file_path is not None else None
         
         # switch channels for images where channel 2 is phase
-        if not (-0.2<phasor[:,:,0].mean()<0.2):
+        if phasor is not None and not (-0.2<phasor[:,:,0].mean()<0.2):
             phasor_copy = phasor.copy()
             phasor[:,:,0], phasor[:,:,2] = phasor_copy[:,:,2], phasor_copy[:,:,0]
         
         masks = generate_masks(mask_generator=mask_generator, image_file_path=image_file_path)
-        masks_filtered = list(filter(mask_filterer, masks))
-        all_masks[image_file_path] = {"image":image, "phasor":phasor, "masks":masks_filtered}
         
-    return all_masks
+        for all_masks, mask_filterer in zip(masks_combos, mask_filterers):
+            masks_filtered = list(filter(mask_filterer, masks))
+
+            if reduce_masks:
+                mask_segmentations = [mask["segmentation"] for mask in masks_filtered]
+                reduced_mask = np.logical_or.reduce(mask_segmentations)
+                all_masks[image_file_path] = reduced_mask
+            else:
+                all_masks[image_file_path] = {"image":image, "phasor":phasor, "masks":masks_filtered}
+        
+    if len(masks_combos) == 1:
+        return masks_combos[0]
+    else:
+        return masks_combos
     
