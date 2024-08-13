@@ -1,6 +1,6 @@
 # qOBM Cell Classification
 
-Cell segmentation and classification leveraging [SAM](https://github.com/facebookresearch/segment-anything) and [DINOv2](https://github.com/facebookresearch/dinov2) for qOBM T-cell images
+Cell segmentation and classification leveraging [SAM 2](https://github.com/facebookresearch/segment-anything-2) and [DINOv2](https://github.com/facebookresearch/dinov2) for qOBM T-cell images
 
 ## Installation
 
@@ -58,4 +58,12 @@ Generate segmnetation masks for these files from the command line to the desired
 python qOBM_classification/segment_stack.py -i input_directory -o output_directory -cp <path/to/SAM/checkpoint> -v
 ```
 
-The segmentation outputs will have the same filenames and array shapes as their corresponding inputs. The arrays have data type `uint8` with `0` representing background and `1` representing cell.
+The segmentation outputs will have the same filenames and array shapes as their corresponding inputs. The arrays have data type `uint16` with `0` representing background and positive integers representing cells, with the value being the unique ID of each tracked cell.
+
+If running out of GPU memory, try using the `--resize` argument to reduce image size during model inference. This reduces memory consumption and speeds up the segmentation at the cost of less precise masks. The output masks will have the same size as the original input. Another option is to reduce the `--batchsize`, which limits the number of masks propagated by the model at the same time, but may require more batches.
+
+Example command that reduces image height and width to 3/4 during inference and using batch size of 20:
+
+```console
+python qOBM_classification/segment_stack.py -i input_directory -o output_directory -cp <path/to/SAM/checkpoint> -v --resize 0.75 --batchsize 20
+```
