@@ -6,7 +6,8 @@ from tqdm import tqdm
 from io import BytesIO
 from functools import partial
 from itertools import product
-from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
+from sam2.build_sam import build_sam2
+from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 from typing import Iterable
 
 def cv2_read_image(path_or_buf):
@@ -26,17 +27,17 @@ def cv2_read_image(path_or_buf):
     return img_raw
         
 
-def get_mask_generator(vit_h_checkpoint, pred_iou_thresh=0.9, stability_score_thresh=0.96, device="cuda"):
+def get_mask_generator(sam2_checkpoint, pred_iou_thresh=0.9, 
+                       stability_score_thresh=0.96, device="cuda", 
+                       model_cfg="sam2_hiera_l.yaml"):
     """
-    Use sam_vit_h_4b8939.pth from 
-    https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
+    Use sam2_hiera_large.pt from 
+    https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_large.pt
     """
-    sam_checkpoint = vit_h_checkpoint
-    model_type = "vit_h"
-    sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-    sam.to(device=device)
-    mask_generator = SamAutomaticMaskGenerator(sam, points_per_side=64, pred_iou_thresh=pred_iou_thresh, 
-                                               stability_score_thresh=stability_score_thresh)
+    sam2 = build_sam2(model_cfg, sam2_checkpoint, device, apply_postprocessing=False)
+    mask_generator = SAM2AutomaticMaskGenerator(sam2, points_per_side=64, 
+                                                pred_iou_thresh=pred_iou_thresh, 
+                                                stability_score_thresh=stability_score_thresh)
     return mask_generator
 
 def generate_masks(mask_generator, image_file_path):
@@ -102,8 +103,6 @@ def get_all_viable_masks(mask_generator, image_file_paths, phasor_file_paths,
     returns : dict
         image_file path as key, value is (H,W) array of masks reduced with logical OR operator
     """
-    
-    
     
     if not isinstance(min_area, Iterable):
         min_area = [min_area]

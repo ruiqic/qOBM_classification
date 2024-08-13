@@ -4,7 +4,7 @@ Cell segmentation and classification leveraging [SAM](https://github.com/faceboo
 
 ## Installation
 
-The code requires `python>=3.10`, `torch>=2.3.1` and `torchvision>=0.18.1`. Follow [these instructions](https://pytorch.org/get-started/locally/) to install `torch` and a matching version of `torchvision`.
+The code requires `python>=3.10`, `torch>=2.3.1` and `torchvision>=0.18.1`. Follow [these instructions](https://pytorch.org/get-started/locally/) to install `torch` and a matching version of `torchvision`. It is recommended to install `numpy<2.0` to avoid incompatibility with many other packages.
 
 
 Clone the repository locally, install the remaining dependencies, and install qOBM Classification
@@ -18,7 +18,7 @@ pip install -e .
 
 ## Getting Started
 
-First, download a SAM 2 [model checkpoint](https://github.com/facebookresearch/segment-anything-2/tree/main?tab=readme-ov-file#download-checkpoints). We recommend `vit_h` for the best segmentation.
+First, download a SAM 2 [model checkpoint](https://github.com/facebookresearch/segment-anything-2/tree/main?tab=readme-ov-file#download-checkpoints). We recommend `sam2_hiera_large.pt` for the best segmentation.
 
 ### Phasor Segmentation and Classification
 
